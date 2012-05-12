@@ -1,5 +1,9 @@
 use ExtUtils::MakeMaker;
 
+my $preop =
+    'perldoc -uT $(VERSION_FROM) | tee $(DISTVNAME)/README.pod > README.pod;' .
+    'pod2text README.pod | tee $(DISTVNAME)/README > README';
+
 my $define;
 
 if ($^O eq 'solaris') {
@@ -18,5 +22,8 @@ WriteMakefile(
   PREREQ_PM => {
     'common::sense' => 0,
     'AnyEvent' => 0,
+  },
+  dist => {
+    PREOP => $preop,
   },
 );
