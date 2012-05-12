@@ -394,9 +394,9 @@ AnyEvent::FDpasser - pass file descriptors between processes using non-blocking 
 
 This module provides an object oriented interface for passing file descriptors between processes. Its primary goals are API simplicity, portability, and reliability. It is suitable for use in non-blocking programs where blocking in even exceptional circumstances is undesirable. Finally, this module should be efficient enough for nearly all use-cases.
 
-This module currently works on BSD-derived systems (*BSD, Linux, OS X, &c) where it uses the SCM_RIGHTS ancillary data feature of AF_UNIX sockets, and on SysV-derived systems (Solaris) where it uses the ioctl(I_SENDFD/I_RECVFD) feature of STREAMS pipes.
+This module currently works on BSD-like systems (*BSD, Linux, OS X, &c) where it uses the SCM_RIGHTS ancillary data feature of AF_UNIX sockets, and on SysV-like systems (Solaris) where it uses the ioctl(I_SENDFD/I_RECVFD) feature of STREAMS pipes.
 
-Note that a passer object is "bidrectional" and you can use the same object to both send and receive file descriptors (each sides has a separate input and output buffer).
+Note that a passer object is "bidrectional" and you can use the same object to both send and receive file descriptors (each side has a separate input and output buffer).
 
 After sending an $fh, the sending process will automatically close the $fh for you and you shouldn't close it yourself (forgetting all references to it is fine and recommended though).
 
@@ -404,7 +404,7 @@ After sending an $fh, the sending process will automatically close the $fh for y
 
 =over 4
 
-=item my $passer = AnyEvent::FDpasser->new([ fh => <handle(s)>,[ dont_set_nonblocking => 1,[ on_error => $cb->($err) ]]])
+=item my $passer = AnyEvent::FDpasser->new([ fh => <handle(s)>,][ dont_set_nonblocking => 1,][ on_error => $cb->($err),])
 
     ## Both of these are the same
     my $passer = AnyEvent::FDpasser->new;
@@ -456,19 +456,19 @@ This method is called push_recv_fh instead of recv_fh to indicate that it is pus
 
 =item AnyEvent::FDpasser::fdpasser_socketpair()
 
-This function returns two handles representing both ends of a connected socketpair. On BSD-derived systems it uses socketpair(2) and on SysV derived systems it calls pipe(2). Note that this function doesn't work on windows. See AnyEvent::Util::portable_socketpair for a windows-portable socketpair (but these handles can't be used with AnyEvent::FDpasser).
+This function returns two handles representing both ends of a connected socketpair. On BSD-like systems it uses socketpair(2) and on SysV derived systems it uses pipe(2). Note that this function doesn't work on windows. See AnyEvent::Util::portable_socketpair for a windows-portable socketpair (but these handles can't be used with AnyEvent::FDpasser).
 
 =item $listener_fh = AnyEvent::FDpasser::fdpasser_server($path[, $backlog ])
 
-This function creates a listening node on the filesystem that other processes can connect to and establish FDpasser-capable connections. It is portable between BSD-derived systems where it uses AF_UNIX sockets and SysV-derived systems where it uses the connld STREAMS module.
+This function creates a listening node on the filesystem that other processes can connect to and establish FDpasser-capable connections. It is portable between BSD-like systems where it uses AF_UNIX sockets and SysV-like systems where it uses the connld STREAMS module.
 
 =item $passer_fh = AnyEvent::FDpasser::fdpasser_accept($listener_fh)
 
-Given a listener filehandle created with L<AnyEvent::FDpasser::fdpasser_server>, this function accepts and creates a new filehandle suitable for creating an FDpasser object. It is portable between BSD-derived systems where it uses the socket accept(2) system call and SysV-derived systems where it uses ioctl(I_RECVFD).
+Given a listener filehandle created with L<AnyEvent::FDpasser::fdpasser_server>, this function accepts and creates a new filehandle suitable for creating an FDpasser object. It is portable between BSD-like systems where it uses the socket accept(2) system call and SysV-like systems where it uses ioctl(I_RECVFD).
 
 =item $passer_fh = AnyEvent::FDpasser::fdpasser_connect($path)
 
-This function connects to a listening node on the filesystem created with L<AnyEvent::FDpasser::fdpasser_server> and returns a new filehandle suitable for creating an FDpasser object. It is portable between BSD-derived systems where it uses the socket connect(2) system call and SysV-derived systems where it simply open()s a mounted stream.
+This function connects to a listening node on the filesystem created with L<AnyEvent::FDpasser::fdpasser_server> and returns a new filehandle suitable for creating an FDpasser object. It is portable between BSD-like systems where it uses the socket connect(2) system call and SysV-like systems where it simply open()s a mounted stream.
 
 =back
 
@@ -583,7 +583,7 @@ This module doesn't support windows. Theoretically windows support could be adde
 
 This module does not support the legacy BSD4.3 interface like L<File::FDpasser> does because I don't have access to any such systems.
 
-If there are multiple outstanding file handles to be sent, for performance reasons this module could (on BSD-derived systems) batch them together into one cmsg structure and then execute one sendmsg() system call. Unfortunately, that would make the close-dup trick less efficient. Maybe there is a sweet spot?
+If there are multiple outstanding file handles to be sent, for performance reasons this module could (on BSD-like systems) batch them together into one cmsg structure and then execute one sendmsg() system call. Unfortunately, that would make the close-dup trick less efficient. Maybe there is a sweet spot?
 
 
 
