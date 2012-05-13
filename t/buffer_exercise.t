@@ -16,7 +16,7 @@ my $passer = AnyEvent::FDpasser->new;
 
 
 if (!fork) {
-  $passer->is_child;
+  $passer->i_am_child;
 
   for my $i (1..3) {
     pipe my $rfh, my $wfh;
@@ -42,7 +42,7 @@ if (!fork) {
     });
   };
 } else {
-  $passer->is_parent;
+  $passer->i_am_parent;
 
   for my $i (1..2) {
     $passer->push_recv_fh(sub {

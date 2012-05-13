@@ -20,7 +20,7 @@ my $passer = AnyEvent::FDpasser->new( on_error => sub {
 
 
 if (fork) {
-  $passer->is_parent;
+  $passer->i_am_parent;
 
   pipe my $rfh, my $wfh;
   print $wfh "hooray\n";
@@ -31,7 +31,7 @@ if (fork) {
     exit;
   });
 } else {
-  $passer->is_child;
+  $passer->i_am_child;
 
   my $watcher; $watcher = AE::timer 0.02, 0, sub {
     undef $watcher;

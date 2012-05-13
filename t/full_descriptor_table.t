@@ -17,7 +17,7 @@ my $passer = AnyEvent::FDpasser->new;
 
 
 if (fork) {
-  $passer->is_parent;
+  $passer->i_am_parent;
 
   for my $curr (1 .. 30) {
     pipe my $rfh, my $wfh;
@@ -32,7 +32,7 @@ if (fork) {
     exit;
   });
 } else {
-  $passer->is_child;
+  $passer->i_am_child;
 
   my $next_desc = 1;
   my @descriptors;

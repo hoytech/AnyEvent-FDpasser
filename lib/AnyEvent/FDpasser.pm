@@ -51,20 +51,20 @@ sub new {
 
 
 
-sub is_parent {
+sub i_am_parent {
   my ($self) = @_;
 
-  die "is_parent only applicable when socketpair used" if !defined $self->{fh_pair};
+  die "i_am_parent only applicable when socketpair used" if !defined $self->{fh_pair};
   die "passer object is in error_state: $self->{error_state}" if exists $self->{error_state};
 
   close($self->{fh_pair});
   delete $self->{fh_pair};
 }
 
-sub is_child {
+sub i_am_child {
   my ($self) = @_;
 
-  die "is_child only applicable when socketpair used" if !defined $self->{fh_pair};
+  die "i_am_child only applicable when socketpair used" if !defined $self->{fh_pair};
   die "passer object is in error_state: $self->{error_state}" if exists $self->{error_state};
 
   close($self->{fh});
@@ -79,7 +79,7 @@ sub push_send_fh {
   my ($self, $fh_to_send, $cb) = @_;
 
   die "passer object is in error_state: $self->{error_state}" if exists $self->{error_state};
-  die "must call is_parent or is_child" if exists $self->{fh_pair};
+  die "must call i_am_parent or i_am_child" if exists $self->{fh_pair};
 
   $cb ||= sub {};
 
@@ -93,7 +93,7 @@ sub push_recv_fh {
   my ($self, $cb) = @_;
 
   die "passer object is in error_state: $self->{error_state}" if exists $self->{error_state};
-  die "must call is_parent or is_child" if exists $self->{fh_pair};
+  die "must call i_am_parent or i_am_child" if exists $self->{fh_pair};
 
   push @{$self->{ibuf}}, $cb;
 
@@ -368,7 +368,7 @@ AnyEvent::FDpasser - pass file descriptors between processes using non-blocking 
     my $passer = AnyEvent::FDpasser->new;
 
     if (fork) {
-      $passer->is_parent;
+      $passer->i_am_parent;
 
       open(my $fh, '>>', '/tmp/fdpasser_output') || die;
       syswrite $fh, "This line is from PID $$\n";
@@ -377,7 +377,7 @@ AnyEvent::FDpasser - pass file descriptors between processes using non-blocking 
 
       undef $fh; # don't close() it though
     } else {
-      $passer->is_child;
+      $passer->i_am_child;
 
       $passer->push_recv_fh(sub {
         my $fh = shift;
@@ -413,10 +413,12 @@ After sending an $fh, the sending process will automatically close the $fh for y
     ## Make sure filehandles are AF_UNIX sockets (BSD) or STREAMS pipes (SysV)
     my $passer = AnyEvent::FDpasser->new( fh => [$fh1, $fh2] );
 
-    ## No is_parent or is_child required after this:
+    ## No i_am_parent or i_am_child required after this:
     my $passer = AnyEvent::FDpasser->new( fh => $fh, );
 
-When creating objects with two (or zero) filehandles, it is assumed you want to fork the $passer object and afterwards you are supposed to fork and then call either $passer->is_parent or $passer->is_child. If you don't plan on forking and instead wish to establish the passing connection via the filesystem, you should only pass one filehandle in.
+When creating objects with two (or zero, which is the same as two) filehandles, it is assumed you want to fork the $passer object and afterwards. After you you fork you are supposed call either $passer->i_am_parent or $passer->i_am_child.
+
+If you don't plan on forking and instead wish to establish the passing connection via the filesystem, you should only pass one filehandle in.
 
 The FDpasser constructor will set all filehandles to non-blocking mode. You can override this by passing C<dont_set_nonblocking =E<gt> 1,> in. Even though this module will only attempt to send or receive descriptors when the OS has indicated it is ready, some event loops deliver spurious readiness deliveries on sockets so this is not recommended.
 
@@ -424,12 +426,12 @@ A callback can be passed in with the C<on_error> parameter. If an error happens,
 
 
 
-=item $passer->is_parent
+=item $passer->i_am_parent
 
 If forking the $passer object, this method must be called by the parent process after forking.
 
 
-=item $passer->is_child
+=item $passer->i_am_child
 
 If forking the $passer object, this method must be called by the child process after forking.
 

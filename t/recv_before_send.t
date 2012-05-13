@@ -19,7 +19,7 @@ my $passer = AnyEvent::FDpasser->new;
 
 
 if (fork) {
-  $passer->is_parent;
+  $passer->i_am_parent;
 
   my $start_time = Time::HiRes::time;
   my $nonblocking_check;
@@ -40,7 +40,7 @@ if (fork) {
     exit;
   });
 } else {
-  $passer->is_child;
+  $passer->i_am_child;
 
   my $watcher; $watcher = AE::timer 0.1, 0, sub {
     undef $watcher;

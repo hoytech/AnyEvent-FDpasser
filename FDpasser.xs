@@ -216,6 +216,8 @@ int _fdpasser_connect(char *path) {
 
 MODULE = AnyEvent::FDpasser           PACKAGE = AnyEvent::FDpasser
 
+PROTOTYPES: ENABLE
+
 
 int
 send_fd(passer_fd, fd_to_send)

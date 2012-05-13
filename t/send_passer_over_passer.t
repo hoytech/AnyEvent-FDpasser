@@ -22,7 +22,7 @@ my $passer = AnyEvent::FDpasser->new;
 
 
 if (fork) {
-  $passer->is_parent;
+  $passer->i_am_parent;
 
   my ($passer2_fh1, $passer2_fh2) = AnyEvent::FDpasser::fdpasser_socketpair or die "can't make socketpair: $!";
   AnyEvent::Util::fh_nonblocking $passer2_fh1, 1;
@@ -40,7 +40,7 @@ if (fork) {
 
 
 } else {
-  $passer->is_child;
+  $passer->i_am_child;
 
   $passer->push_recv_fh(sub {
     my ($passer2_fh1) = @_;

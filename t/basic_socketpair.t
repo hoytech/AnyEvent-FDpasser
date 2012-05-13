@@ -15,7 +15,7 @@ my $passer = AnyEvent::FDpasser->new( fh => [ AnyEvent::FDpasser::fdpasser_socke
 
 
 if (fork) {
-  $passer->is_parent;
+  $passer->i_am_parent;
 
   pipe my $rfh, my $wfh;
   $passer->push_send_fh($wfh);
@@ -33,7 +33,7 @@ if (fork) {
     });
   };
 } else {
-  $passer->is_child;
+  $passer->i_am_child;
 
   $passer->push_recv_fh(sub {
     my ($fh) = @_;
