@@ -3,3 +3,8 @@ Makefile
 Makefile.old
 MYMETA.*
 AnyEvent-FDpasser-*.tar.gz
+FDpasser.bs
+FDpasser.c
+FDpasser.o
+blib/
+pm_to_blib
