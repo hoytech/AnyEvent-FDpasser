@@ -13,6 +13,8 @@ use Test::More tests => 2;
 
 my $passer = AnyEvent::FDpasser->new( fh => [ AnyEvent::FDpasser::fdpasser_socketpair ] );
 
+my $done_cv = AE::cv;
+
 
 if (fork) {
   $passer->i_am_parent;
@@ -29,7 +31,7 @@ if (fork) {
       my $fh = shift;
       my $text = <$fh>;
       is($text, "some data 2\n", "send fh from child -> parent ok");
-      exit;
+      $done_cv->send;
     });
   };
 } else {
@@ -42,8 +44,8 @@ if (fork) {
 
     pipe my $rfh, my $wfh;
     print $wfh "some data 2\n";
-    $passer->push_send_fh($rfh, sub { exit; });
+    $passer->push_send_fh($rfh, sub { $done_cv->send; });
   });
 }
 
-AE->cv->recv;
+$done_cv->recv;

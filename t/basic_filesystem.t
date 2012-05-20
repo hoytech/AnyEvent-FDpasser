@@ -12,6 +12,8 @@ use Test::More tests => 2;
 
 my $path = '/tmp/fdpasser_junk_socket';
 
+my $done_cv = AE::cv;
+
 
 if (fork) {
   my $server_fh = AnyEvent::FDpasser::fdpasser_server($path);
@@ -35,7 +37,7 @@ if (fork) {
         my $text = <$fh>;
         is($text, "some data 2\n", "send fh from child -> parent ok");
         unlink($path);
-        exit;
+        $done_cv->send;
       });
     };
   };
@@ -52,9 +54,9 @@ if (fork) {
 
       pipe my $rfh, my $wfh;
       print $wfh "some data 2\n";
-      $passer->push_send_fh($rfh, sub { exit; });
+      $passer->push_send_fh($rfh, sub { $done_cv->send; });
     });
   };
 }
 
-AE->cv->recv;
+$done_cv->recv;

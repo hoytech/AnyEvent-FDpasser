@@ -12,6 +12,8 @@ use Test::More tests => 8;
 ## The point of this test is to ensure some assumptions about when file
 ## descriptors are set to non-blocking mode.
 
+my $done_cv = AE::cv;
+
 
 sub is_nonblocking {
   my $fh = shift;
@@ -66,7 +68,7 @@ if (fork) {
     }
 
     undef $watcher;
-    exit;
+    $done_cv->send;
   };
 } else {
   my $is_nonblocking_preserved_on_fork = is_nonblocking($fh2);
@@ -82,8 +84,8 @@ if (fork) {
     print $fh "results " . ($is_nonblocking_preserved_on_fork ? 'Y' : 'N') . " "
                           . ($is_nonblocking_preserved_through_sendmsg ? 'Y' : 'N') . "\n";
 
-    exit;
+    $done_cv->send;
   });
 }
 
-AE->cv->recv;
+$done_cv->recv;

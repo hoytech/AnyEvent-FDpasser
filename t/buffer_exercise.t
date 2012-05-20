@@ -14,6 +14,8 @@ use Test::More tests => 4;
 
 my $passer = AnyEvent::FDpasser->new;
 
+my $done_cv = AE::cv;
+
 
 if (!fork) {
   $passer->i_am_child;
@@ -38,7 +40,7 @@ if (!fork) {
       my $fh = shift;
       my $text = <$fh>;
       die "didn't get it all" unless $text eq "got it all\n";
-      exit;
+      $done_cv->send;
     });
   };
 } else {
@@ -68,9 +70,9 @@ if (!fork) {
 
       pipe my $rfh, my $wfh;
       print $wfh "got it all\n";
-      $passer->push_send_fh($rfh, sub { exit; });
+      $passer->push_send_fh($rfh, sub { $done_cv->send; });
     });
   };
 }
 
-AE->cv->recv;
+$done_cv->recv;

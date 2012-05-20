@@ -18,6 +18,8 @@ use Test::More tests => 2;
 
 my $passer = AnyEvent::FDpasser->new;
 
+my $done_cv = AE::cv;
+
 
 if (fork) {
   $passer->i_am_parent;
@@ -37,7 +39,7 @@ if (fork) {
     my $fh = shift;
     my $text = <$fh>;
     is($text, "hooray\n", 'got data');
-    exit;
+    $done_cv->send;
   });
 } else {
   $passer->i_am_child;
@@ -46,8 +48,8 @@ if (fork) {
     undef $watcher;
     pipe my $rfh, my $wfh;
     print $wfh "hooray\n";
-    $passer->push_send_fh($rfh, sub { exit; });
+    $passer->push_send_fh($rfh, sub { $done_cv->send; });
   };
 }
 
-AE->cv->recv;
+$done_cv->recv;

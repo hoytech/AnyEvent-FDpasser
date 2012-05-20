@@ -15,6 +15,8 @@ use Test::More tests => 1;
 
 my $passer = AnyEvent::FDpasser->new;
 
+my $done_cv = AE::cv;
+
 
 if (fork) {
   $passer->i_am_parent;
@@ -29,7 +31,7 @@ if (fork) {
     my $fh = shift;
     my $text = <$fh>;
     is($text, "hooray\n", 'got 30');
-    exit;
+    $done_cv->send;
   });
 } else {
   $passer->i_am_child;
@@ -50,7 +52,7 @@ if (fork) {
       my $fh = shift;
 
       my $text = <$fh>;
-      exit unless $text eq "descriptor $next_desc\n";
+      die "bad descriptor order" unless $text eq "descriptor $next_desc\n";
 
       $next_desc++;
       push @descriptors, $fh;
@@ -59,10 +61,10 @@ if (fork) {
         undef @descriptors; ## otherwise pipe() below may fail
         pipe my $rfh, my $wfh;
         print $wfh "hooray\n";
-        $passer->push_send_fh($rfh, sub { exit; });
+        $passer->push_send_fh($rfh, sub { $done_cv->send; });
       }
     });
   }
 }
 
-AE->cv->recv;
+$done_cv->recv;

@@ -20,6 +20,8 @@ use Test::More tests => 1;
 
 my $passer = AnyEvent::FDpasser->new;
 
+my $done_cv = AE::cv;
+
 
 if (fork) {
   $passer->i_am_parent;
@@ -35,7 +37,7 @@ if (fork) {
     my $fh = shift;
     my $text = <$fh>;
     is($text, "hooray\n", "got final data");
-    exit;
+    $done_cv->send;
   });
 
 
@@ -51,9 +53,9 @@ if (fork) {
 
     pipe my $rfh, my $wfh;
     print $wfh "hooray\n";
-    $passer2->push_send_fh($rfh, sub { exit; });
+    $passer2->push_send_fh($rfh, sub { $done_cv->send; });
   });
 
 }
 
-AE->cv->recv;
+$done_cv->recv;

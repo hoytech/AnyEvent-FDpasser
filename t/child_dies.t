@@ -10,11 +10,12 @@ use Test::More tests => 1;
 ## detected and reported by the on_error callback.
 
 
+my $done_cv = AE::cv;
 
 my $passer = AnyEvent::FDpasser->new( on_error => sub {
                                         my $err = shift;
                                         ok(1, "error callback triggered ok ($err)");
-                                        exit;
+                                        $done_cv->send;
                                       },
                                     );
 
@@ -28,15 +29,15 @@ if (fork) {
 
   $passer->push_recv_fh(sub {
     ok(0, "received fh?");
-    exit;
+    $done_cv->send;
   });
 } else {
   $passer->i_am_child;
 
   my $watcher; $watcher = AE::timer 0.02, 0, sub {
     undef $watcher;
-    exit;
+    $done_cv->send;
   };
 }
 
-AE->cv->recv;
+$done_cv->recv;
