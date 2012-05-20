@@ -9,7 +9,7 @@ XSLoader::load('AnyEvent::FDpasser', $VERSION);
 
 use Carp;
 use Errno;
-use POSIX;
+use POSIX; ## Uses POSIX::pipe/dup so we get accurate $!
 use Socket qw/AF_UNIX SOCK_STREAM SOL_SOCKET AF_UNSPEC SO_REUSEADDR/;
 
 use AnyEvent;
@@ -327,8 +327,6 @@ sub setup_fh_duped {
 
   return if exists $self->{fh_duped};
 
-  ## Using POSIX::pipe/dup so we get accurate $!
-
   if (!exists $self->{fh_duped_orig}) {
     my ($r, $w) = POSIX::pipe();
     die "can't call pipe: $!" unless defined $r;
@@ -439,9 +437,9 @@ When creating objects with two (or zero, which is the same as two) filehandles, 
 
 If you don't plan on forking and instead wish to establish the passing connection via the filesystem, you should only pass one filehandle in.
 
-The FDpasser constructor will set all filehandles to non-blocking mode. You can override this by passing C<dont_set_nonblocking =E<gt> 1,> in. Even though this module will only attempt to send or receive descriptors when the OS has indicated it is ready, some event loops deliver spurious readiness deliveries on sockets so this is not recommended.
+The FDpasser constructor will set all filehandles to non-blocking mode. You can override this by passing C<dont_set_nonblocking =E<gt> 1,> in. Even though this module will only attempt to send or receive descriptors when the OS has indicated it is ready, some event loops deliver spurious readiness deliveries on sockets so this is not recommended. However, if you are creating passers often and your sockets are known to already be in non-blocking mode, C<dont_set_nonblocking> will provide a slight performance improvement in that it avoids a couple syscalls.
 
-A callback can be passed in with the C<on_error> parameter. If an error happens, the $passer object will be destroyed and the callback will be invoked. $@ will be set to the error reason, or will be undef in the event of an orderly shutdown.
+An error callback can be passed in with the C<on_error> parameter. If an error happens, the $passer object will be shutdown and the callback invoked. C<$@> will be set to the error reason or will be undef in the event of an orderly shutdown.
 
 
 
@@ -522,13 +520,17 @@ With both the BSD and SysV APIs it is possible to use the passer filehandle to t
 
 Any system call that creates new descriptors in your process can fail because your process has exceed its NOFILE resource limit. Also, it can fail because the system has run out of resources and can't handle new files or (more likely on modern systems) it has hit an artificial kernel-imposed limit like kern.maxfiles on BSD.
 
-In order to pass a file descriptor between processes, a new descriptor needs to be allocated in the receiving process. Therefore, the recvmsg system call used to implement descriptor passing can fail for the reasons described above. Failing to create a descriptor is especially bad when transfering descriptors since the outcome is not well specified. Linux doesn't even mention this possible failure mode in the recvmsg() man page. BSD manuals indicate that EMSGSIZE will be returned and any descriptors in transit will be closed. If a descriptor is closed it can never be delivered to the application, even if the full descriptor table problem clears up.
+In order to pass a file descriptor between processes, a new descriptor needs to be allocated in the receiving process. Therefore, the recvmsg or ioctl system call used to implement descriptor passing can fail for the reasons described above. Failing to create a descriptor is especially bad when transfering descriptors since the outcome is not well specified. Linux doesn't even mention this possible failure mode in the recvmsg() man page. BSD manuals indicate that EMSGSIZE will be returned and any descriptors in transit will be closed. If a descriptor is closed it can never be delivered to the application, even if the full descriptor table problem clears up.
 
 So what should we do? We could silently ignore it when a descriptor fails to transfer, but then we run the risk of desynchronising the descriptor stream. Another possibility is indicating to the application that this descriptor has failed to transfer and is now lost forever. Unfortunately this complicates the error handling an application must do, especially if the descriptor is linked to other descriptors which must then be received and (if they make it) closed. Finally, we could just give up, call the on_error callback, destory the passer object and punt the problem back to the application.
 
 None of the above "solutions" are very appealing so this module uses a trick known as the "close-dup slot reservation" trick. Actually I just made that name up now but it sounds pretty cool don't you think? The idea is that when the passer object is created, we dup a file descriptor and store it in the object. This module creates a pipe when the passer object is made, closes one side of the pipe and keeps the other around indefinitely. This "sentinel" descriptor exists solely to take up an entry in our descriptor table: we will never write to it, read from it, or poll it.
 
-When it comes time to receive a descriptor, we close the sentintel descriptor, receive the descriptor, and then attempt to dup another descriptor. Because we just cleared a descriptor entry, receiving the descriptor is highly unlikely to fail because of a full descriptor table (though note it can happen if you have signal handlers or threads that create descriptors, so don't do that (AnyEvent signal handlers are fine though)). After we have received the descriptor, we attempt to dup another descriptor. If that fails, we stop trying to receive any further descriptors and instead try again at regular intervals to dup. Hopefully eventually the full descriptor table issue will clear up and we will be able to resume receiving descriptors.
+When it comes time to receive a descriptor, we close the sentinel descriptor, receive the descriptor, and then attempt to dup another descriptor. Because we just cleared a descriptor entry, there should always be a free descriptor to create.
+
+After we have received the descriptor, we attempt to dup another descriptor. If that fails, we stop trying to receive any further descriptors and instead try again at regular intervals to dup. Hopefully eventually the full descriptor table issue will clear up and we will be able to resume receiving descriptors.
+
+Note that a descriptor could be created between closing and receiving if your program uses signal handlers or threads that create descriptors, so don't do that. Signal handlers that run synchronously (like with normal AnyEvent signal watchers) are fine though.
 
 This trick is similar to a trick described in Marc Lehmann's libev POD document, section "special problem of accept()ing when you can't," although the purpose of employing the trick in this module is somewhat different.
 
