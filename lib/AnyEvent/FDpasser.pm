@@ -287,7 +287,6 @@ sub error {
   close($self->{fh});
   close($self->{fh_pair}) if exists $self->{fh_pair};
 
-  ## FIXME: use a guard to make sure these closes are done when object is deleted manually too
   if (exists $self->{fh_duped}) {
     POSIX::close($self->{fh_duped});
     delete $self->{fh_duped};
@@ -305,10 +304,26 @@ sub error {
 }
 
 
+sub DESTROY {
+  my ($self) = @_;
+
+  if (exists $self->{fh_duped}) {
+    POSIX::close($self->{fh_duped});
+    delete $self->{fh_duped};
+  }
+  if (exists $self->{fh_duped_orig}) {
+    POSIX::close($self->{fh_duped_orig});
+    delete $self->{fh_duped_orig};
+  }
+}
+
+
 sub setup_fh_duped {
   my ($self) = @_;
 
   return if exists $self->{fh_duped};
+
+  ## Using POSIX::pipe/dup so we get accurate $!
 
   if (!exists $self->{fh_duped_orig}) {
     my ($r, $w) = POSIX::pipe();
