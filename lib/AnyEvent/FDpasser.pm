@@ -128,8 +128,8 @@ sub try_to_send {
     } elsif ($rv == 0) {
       $self->error('sendmsg wrote 0 bytes');
     } else {
-      close($fh_to_send->[0]);
       $fh_to_send->[1]->();
+      ## Don't do a close($fh_to_send->[0]) because the program may wish to keep it alive
       undef $fh_to_send;
       $self->{owatcher} = undef;
       $self->try_to_send;
@@ -415,7 +415,7 @@ This module currently works on BSD-like systems (*BSD, Linux, OS X, &c) where it
 
 Note that a passer object is "bidrectional" and you can use the same object to both send and receive file descriptors (each side has a separate input and output buffer).
 
-After sending an $fh, the sending process will automatically close the $fh for you and you shouldn't close it yourself (forgetting all references to it is fine and recommended though).
+After sending an $fh, the sending process will automatically destroy the $fh for you and you shouldn't close it yourself. Forgetting all references to it is what you should do so that the underlying descriptor is actually closed after it is sent. The exception to this is when you also wish to keep the descriptor in the sender. Usually you will only do this for sockets that you accept() from.
 
 
 
