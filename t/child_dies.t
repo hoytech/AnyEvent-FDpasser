@@ -13,7 +13,7 @@ use Test::More tests => 1;
 my $done_cv = AE::cv;
 
 my $passer = AnyEvent::FDpasser->new( on_error => sub {
-                                        my $err = shift;
+                                        my $err = $@;
                                         ok(1, "error callback triggered ok ($err)");
                                         $done_cv->send;
                                       },

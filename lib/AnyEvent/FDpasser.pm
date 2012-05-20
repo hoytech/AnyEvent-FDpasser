@@ -180,7 +180,8 @@ sub try_to_recv {
     } elsif ($rv == -2) {
       $self->error("cmsg truncated");
     } elsif ($rv == 0) {
-      $self->error("normal disconnection");
+      ## Orderly shutdown
+      $self->error(undef);
     } else {
       open(my $new_fh, '+<&=', $rv);
       $self->{iwatcher} = undef;
@@ -300,7 +301,10 @@ sub error {
 
   $self->{error_state} = $err;
 
-  $on_error->($err) if $on_error;
+  {
+    local $@ = $err;
+    $on_error->() if $on_error;
+  }
 }
 
 
@@ -419,7 +423,7 @@ After sending an $fh, the sending process will automatically close the $fh for y
 
 =over 4
 
-=item my $passer = AnyEvent::FDpasser->new([ fh => <handle(s)>,][ dont_set_nonblocking => 1,][ on_error => $cb->($err),])
+=item my $passer = AnyEvent::FDpasser->new([ fh => <handle(s)>,][ dont_set_nonblocking => 1,][ on_error => $cb->(),])
 
     ## Both of these are the same
     my $passer = AnyEvent::FDpasser->new;
@@ -437,7 +441,7 @@ If you don't plan on forking and instead wish to establish the passing connectio
 
 The FDpasser constructor will set all filehandles to non-blocking mode. You can override this by passing C<dont_set_nonblocking =E<gt> 1,> in. Even though this module will only attempt to send or receive descriptors when the OS has indicated it is ready, some event loops deliver spurious readiness deliveries on sockets so this is not recommended.
 
-A callback can be passed in with the C<on_error> parameter. If an error happens, the $passer object will be destroyed and the callback will be invoked with one argument: the reason for the error.
+A callback can be passed in with the C<on_error> parameter. If an error happens, the $passer object will be destroyed and the callback will be invoked. $@ will be set to the error reason, or will be undef in the event of an orderly shutdown.
 
 
 
