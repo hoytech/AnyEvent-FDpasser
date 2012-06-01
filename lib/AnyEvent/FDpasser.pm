@@ -433,9 +433,9 @@ After sending an $fh, the sending process will automatically destroy the $fh for
     ## No i_am_parent or i_am_child required after this:
     my $passer = AnyEvent::FDpasser->new( fh => $fh, );
 
-When creating objects with two (or zero, which is the same as two) filehandles, it is assumed you want to fork the $passer object and afterwards. After you you fork you are supposed call either $passer->i_am_parent or $passer->i_am_child.
+When creating a passer objects with two filehandles, it is assumed you want to fork. After you fork you are then supposed call $passer->i_am_parent and $passer->i_am_child. Creating a passer object with zero filehandles automatically creates a socketpair (or pipe on SysV-like systems) for you after which you should also fork and call $passer->i_am_parent and $passer->i_am_child.
 
-If you don't plan on forking and instead wish to establish the passing connection via the filesystem, you should only pass one filehandle in.
+If you don't plan on forking and instead wish to establish the passing connection via the filesystem, you should only pass one filehandle in. See the C<fdpasser_server>, C<fdpasser_accept>, and C<fdpasser_connect> functions described below in order to portably create suitable filehandles.
 
 The FDpasser constructor will set all filehandles to non-blocking mode. You can override this by passing C<dont_set_nonblocking =E<gt> 1,> in. Even though this module will only attempt to send or receive descriptors when the OS has indicated it is ready, some event loops deliver spurious readiness deliveries on sockets so this is not recommended. However, if you are creating passers often and your sockets are known to already be in non-blocking mode, C<dont_set_nonblocking> will provide a slight performance improvement in that it avoids a couple syscalls.
 
