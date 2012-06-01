@@ -40,7 +40,7 @@ This module currently works on BSD-like systems (*BSD, Linux, OS X, &c) where it
 
 Note that a passer object is "bidrectional" and you can use the same object to both send and receive file descriptors (each side has a separate input and output buffer).
 
-After sending an $fh, the sending process will automatically close the $fh for you and you shouldn't close it yourself (forgetting all references to it is fine and recommended though).
+After sending an $fh, the sending process will automatically destroy the $fh for you and you shouldn't close it yourself. Forgetting all references to it is what you should do so that the underlying descriptor is actually closed after it is sent. The exception to this is when you also wish to keep the descriptor in the sender. Usually you will only do this for sockets that you accept() from.
 
 
 
@@ -58,13 +58,13 @@ After sending an $fh, the sending process will automatically close the $fh for y
     ## No i_am_parent or i_am_child required after this:
     my $passer = AnyEvent::FDpasser->new( fh => $fh, );
 
-When creating objects with two (or zero, which is the same as two) filehandles, it is assumed you want to fork the $passer object and afterwards. After you you fork you are supposed call either $passer->i_am_parent or $passer->i_am_child.
+When creating a passer objects with two filehandles, it is assumed you want to fork. After you fork you are then supposed call $passer->i_am_parent and $passer->i_am_child. Creating a passer object with zero filehandles automatically creates a socketpair (or pipe on SysV-like systems) for you after which you should also fork and call $passer->i_am_parent and $passer->i_am_child.
 
-If you don't plan on forking and instead wish to establish the passing connection via the filesystem, you should only pass one filehandle in.
+If you don't plan on forking and instead wish to establish the passing connection via the filesystem, you should only pass one filehandle in. See the C<fdpasser_server>, C<fdpasser_accept>, and C<fdpasser_connect> functions described below in order to portably create suitable filehandles.
 
-The FDpasser constructor will set all filehandles to non-blocking mode. You can override this by passing C<dont_set_nonblocking =E<gt> 1,> in. Even though this module will only attempt to send or receive descriptors when the OS has indicated it is ready, some event loops deliver spurious readiness deliveries on sockets so this is not recommended.
+The FDpasser constructor will set all filehandles to non-blocking mode. You can override this by passing C<dont_set_nonblocking =E<gt> 1,> in. Even though this module will only attempt to send or receive descriptors when the OS has indicated it is ready, some event loops deliver spurious readiness deliveries on sockets so this is not recommended. However, if you are creating passers often and your sockets are known to already be in non-blocking mode, C<dont_set_nonblocking> will provide a slight performance improvement in that it avoids a couple syscalls.
 
-A callback can be passed in with the C<on_error> parameter. If an error happens, the $passer object will be destroyed and the callback will be invoked. $@ will be set to the error reason, or will be undef in the event of an orderly shutdown.
+An error callback can be passed in with the C<on_error> parameter. If an error happens, the $passer object will be shutdown and the callback invoked. C<$@> will be set to the error reason or will be undef in the event of an orderly shutdown.
 
 
 
@@ -145,13 +145,17 @@ With both the BSD and SysV APIs it is possible to use the passer filehandle to t
 
 Any system call that creates new descriptors in your process can fail because your process has exceed its NOFILE resource limit. Also, it can fail because the system has run out of resources and can't handle new files or (more likely on modern systems) it has hit an artificial kernel-imposed limit like kern.maxfiles on BSD.
 
-In order to pass a file descriptor between processes, a new descriptor needs to be allocated in the receiving process. Therefore, the recvmsg system call used to implement descriptor passing can fail for the reasons described above. Failing to create a descriptor is especially bad when transfering descriptors since the outcome is not well specified. Linux doesn't even mention this possible failure mode in the recvmsg() man page. BSD manuals indicate that EMSGSIZE will be returned and any descriptors in transit will be closed. If a descriptor is closed it can never be delivered to the application, even if the full descriptor table problem clears up.
+In order to pass a file descriptor between processes, a new descriptor needs to be allocated in the receiving process. Therefore, the recvmsg or ioctl system call used to implement descriptor passing can fail for the reasons described above. Failing to create a descriptor is especially bad when transfering descriptors since the outcome is not well specified. Linux doesn't even mention this possible failure mode in the recvmsg() man page. BSD manuals indicate that EMSGSIZE will be returned and any descriptors in transit will be closed. If a descriptor is closed it can never be delivered to the application, even if the full descriptor table problem clears up.
 
 So what should we do? We could silently ignore it when a descriptor fails to transfer, but then we run the risk of desynchronising the descriptor stream. Another possibility is indicating to the application that this descriptor has failed to transfer and is now lost forever. Unfortunately this complicates the error handling an application must do, especially if the descriptor is linked to other descriptors which must then be received and (if they make it) closed. Finally, we could just give up, call the on_error callback, destory the passer object and punt the problem back to the application.
 
 None of the above "solutions" are very appealing so this module uses a trick known as the "close-dup slot reservation" trick. Actually I just made that name up now but it sounds pretty cool don't you think? The idea is that when the passer object is created, we dup a file descriptor and store it in the object. This module creates a pipe when the passer object is made, closes one side of the pipe and keeps the other around indefinitely. This "sentinel" descriptor exists solely to take up an entry in our descriptor table: we will never write to it, read from it, or poll it.
 
-When it comes time to receive a descriptor, we close the sentintel descriptor, receive the descriptor, and then attempt to dup another descriptor. Because we just cleared a descriptor entry, receiving the descriptor is highly unlikely to fail because of a full descriptor table (though note it can happen if you have signal handlers or threads that create descriptors, so don't do that (AnyEvent signal handlers are fine though)). After we have received the descriptor, we attempt to dup another descriptor. If that fails, we stop trying to receive any further descriptors and instead try again at regular intervals to dup. Hopefully eventually the full descriptor table issue will clear up and we will be able to resume receiving descriptors.
+When it comes time to receive a descriptor, we close the sentinel descriptor, receive the descriptor, and then attempt to dup another descriptor. Because we just cleared a descriptor entry, there should always be a free descriptor to create.
+
+After we have received the descriptor, we attempt to dup another descriptor. If that fails, we stop trying to receive any further descriptors and instead try again at regular intervals to dup. Hopefully eventually the full descriptor table issue will clear up and we will be able to resume receiving descriptors.
+
+Note that a descriptor could be created between closing and receiving if your program uses signal handlers or threads that create descriptors, so don't do that. Signal handlers that run synchronously (like with normal AnyEvent signal watchers) are fine though.
 
 This trick is similar to a trick described in Marc Lehmann's libev POD document, section "special problem of accept()ing when you can't," although the purpose of employing the trick in this module is somewhat different.
 
