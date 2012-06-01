@@ -2,7 +2,7 @@ use common::sense;
 
 use Fcntl qw(F_GETFL O_NONBLOCK);;
 
-use AnyEvent;
+use AnyEvent::Strict;
 use AnyEvent::Util;
 use AnyEvent::FDpasser;
 

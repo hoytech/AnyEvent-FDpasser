@@ -1,6 +1,6 @@
 use common::sense;
 
-use AnyEvent;
+use AnyEvent::Strict;
 use AnyEvent::FDpasser;
 use AnyEvent::Util;
 

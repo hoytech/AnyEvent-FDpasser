@@ -2,7 +2,7 @@ use common::sense;
 
 use Time::HiRes;
 
-use AnyEvent;
+use AnyEvent::Strict;
 use AnyEvent::FDpasser;
 
 use Test::More tests => 2;

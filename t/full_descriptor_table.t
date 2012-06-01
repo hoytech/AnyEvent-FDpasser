@@ -2,7 +2,7 @@ use common::sense;
 
 use BSD::Resource;
 
-use AnyEvent;
+use AnyEvent::Strict;
 use AnyEvent::FDpasser;
 
 use Test::More tests => 1;
