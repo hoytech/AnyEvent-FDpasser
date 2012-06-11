@@ -590,6 +590,8 @@ There is a test (full_descriptor_table.t) to verify this.
 
 =head1 SEE ALSO
 
+L<The AnyEvent::FDpasser github repo|https://github.com/hoytech/AnyEvent-FDpasser>
+
 This module gets its name from L<File::FDpasser> which does roughly the same thing as this module except this module provides a non-blocking interface, buffers the sending and receiving of descriptors, doesn't lose descriptors in the event of a full descriptor table, and doesn't print messages to stderr from the XS code.
 
 L<Sprocket::Util::FDpasser> is an example of a non-blocking interface to File::FDpasser. It is based on L<POE> whereas this module is (obviously) based on AnyEvent.
