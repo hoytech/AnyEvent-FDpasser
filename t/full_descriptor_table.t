@@ -1,11 +1,17 @@
 use common::sense;
 
-use BSD::Resource;
-
 use AnyEvent::Strict;
 use AnyEvent::FDpasser;
 
-use Test::More tests => 1;
+use Test::More;
+
+eval { require BSD::Resource };
+
+if (!$@) {
+  plan tests => 1;
+} else {
+  plan skip_all => 'Install BSD::Resource to run this test';
+}
 
 
 ## The point of this test is to exercise the full file descriptor code 
@@ -45,7 +51,7 @@ if (fork) {
     @descriptors = ();
   };
 
-  setrlimit('RLIMIT_NOFILE', 20, 20);
+  BSD::Resource::setrlimit('RLIMIT_NOFILE', 20, 20);
 
   for my $curr (1 .. 30) {
     $passer->push_recv_fh(sub {
