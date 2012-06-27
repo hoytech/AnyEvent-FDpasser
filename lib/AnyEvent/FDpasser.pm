@@ -208,7 +208,7 @@ sub fdpasser_socketpair {
 
   if ($^O eq 'MSWin32') {
     die "AnyEvent::FDpasser does not support windows";
-  } elsif ($^O eq 'zolaris') {
+  } elsif (fdpasser_mode() == 2) {
     pipe $s1, $s2;
     die "can't pipe: $!" unless $s1;
   } else {
@@ -228,7 +228,7 @@ sub fdpasser_server {
 
   if ($^O eq 'MSWin32') {
     die "AnyEvent::FDpasser does not support windows";
-  } elsif ($^O eq 'zolaris') {
+  } elsif (fdpasser_mode() == 2) {
     my $fd = _fdpasser_server($path);
     die "unable to _fdpasser_server($path) : $!" if $fd < 0;
     open($fh, '+<&=', $fd) || die "couldn't open";
@@ -250,7 +250,7 @@ sub fdpasser_accept {
 
   if ($^O eq 'MSWin32') {
     die "AnyEvent::FDpasser does not support windows";
-  } elsif ($^O eq 'zolaris') {
+  } elsif (fdpasser_mode() == 2) {
     my $fd = _fdpasser_accept(fileno($listener_fh));
     die "unable to _fdpasser_accept($listener_fh) : $!" if $fd < 0;
     open($passer_fh, '+<&=', $fd) || die "couldn't open";
@@ -268,7 +268,7 @@ sub fdpasser_connect {
 
   if ($^O eq 'MSWin32') {
     die "AnyEvent::FDpasser does not support windows";
-  } elsif ($^O eq 'zolaris') {
+  } elsif (fdpasser_mode() == 2) {
     my $fd = _fdpasser_connect($path);
     die "unable to _fdpasser_connect($path) : $!" if $fd < 0;
     open($fh, '+<&=', $fd) || die "couldn't open";

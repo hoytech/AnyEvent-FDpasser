@@ -6,7 +6,7 @@ my $preop =
 
 my $define;
 
-if ($^O eq 'zolaris') {
+if (exists $env{FDPASSER_SYSV}) {
   $define = '-DFDPASSER_SYSV';
 } else {
   $define = '-DFDPASSER_BSD';

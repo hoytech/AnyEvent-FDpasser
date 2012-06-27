@@ -111,17 +111,22 @@ static int recv_fd(int passer_fd) {
 }
 
 
-int _fdpasser_server(char *path) {
+static int fdpasser_mode() {
+  return 1;
+}
+
+
+static int _fdpasser_server(char *path) {
   // Only used in SysV
   assert(0);
 }
 
-int _fdpasser_accept(char fd) {
+static int _fdpasser_accept(char fd) {
   // Only used in SysV
   assert(0);
 }
 
-int _fdpasser_connect(char *path) {
+static int _fdpasser_connect(char *path) {
   // Only used in SysV
   assert(0);
 }
@@ -175,9 +180,14 @@ static int recv_fd(int passer_fd) {
 }
 
 
+static int fdpasser_mode() {
+  return 2;
+}
+
+
 /* FIXME: double-check these functions for descriptor leaks */
 
-int _fdpasser_server(char *path) {
+static int _fdpasser_server(char *path) {
   int fds[2];
   int filefd;
   int rv;
@@ -214,7 +224,7 @@ int _fdpasser_server(char *path) {
   return fds[0];
 }
 
-int _fdpasser_accept(char fd) {
+static int _fdpasser_accept(char fd) {
   struct strrecvfd recvfd;
   int rv;
 
@@ -226,7 +236,7 @@ int _fdpasser_accept(char fd) {
   return recvfd.fd;
 }
 
-int _fdpasser_connect(char *path) {
+static int _fdpasser_connect(char *path) {
   int fd;
   int rv;
 
@@ -258,6 +268,8 @@ send_fd(passer_fd, fd_to_send)
 
 int recv_fd(passer_fd)
     int passer_fd
+
+int fdpasser_mode()
 
 int _fdpasser_server(path)
     char *path
