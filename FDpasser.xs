@@ -9,15 +9,24 @@
 #include <string.h>
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <sys/uio.h>
+
+#if defined(__sun)
+#undef SCM_RIGHTS
+#endif
+
+
 
 
 static int send_fd(int passer_fd, int fd_to_send) {
   struct msghdr msg;
+#ifdef SCM_RIGHTS
   struct cmsghdr *cmsg;
   union {
     struct cmsghdr hdr;
     unsigned char buf[CMSG_SPACE(sizeof(int))];
   } cmsgbuf;
+#endif
   struct iovec vec;
   char junkbuf[1];
 
@@ -25,10 +34,11 @@ static int send_fd(int passer_fd, int fd_to_send) {
 
   msg.msg_iov = &vec;
   msg.msg_iovlen = 1;
-  vec.iov_base = &junkbuf;
+  vec.iov_base = (void*) &junkbuf;
   vec.iov_len = 1;
   junkbuf[0] = '\0';
 
+#ifdef SCM_RIGHTS
   msg.msg_control = &cmsgbuf.buf;
   msg.msg_controllen = sizeof(cmsgbuf.buf);
   cmsg = CMSG_FIRSTHDR(&msg);
@@ -36,30 +46,39 @@ static int send_fd(int passer_fd, int fd_to_send) {
   cmsg->cmsg_level = SOL_SOCKET;
   cmsg->cmsg_type = SCM_RIGHTS;
   *(int *)CMSG_DATA(cmsg) = fd_to_send;
+#else
+  msg.msg_accrights = (void*) &fd_to_send;
+  msg.msg_accrightslen = sizeof(fd_to_send);
+#endif
 
   return sendmsg(passer_fd, &msg, 0);
 }
 
 static int recv_fd(int passer_fd) {
   struct msghdr msg;
+#ifdef SCM_RIGHTS
   struct cmsghdr *cmsg;
   union {
     struct cmsghdr hdr;
     unsigned char buf[CMSG_SPACE(sizeof(int))];
   } cmsgbuf;
+#endif
   struct iovec vec;
   char junkbuf[1];
   int rv;
+  int recv_fd;
 
   memset(&msg, 0, sizeof(msg));
 
   vec.iov_base = junkbuf;
   vec.iov_len = 1;
+  msg.msg_iov = &vec;
+  msg.msg_iovlen = 1;
+
+#ifdef SCM_RIGHTS
 
   msg.msg_control = &cmsgbuf.buf;
   msg.msg_controllen = sizeof(cmsgbuf.buf);
-  msg.msg_iov = &vec;
-  msg.msg_iovlen = 1;
 
   rv = recvmsg(passer_fd, &msg, 0);
 
@@ -75,21 +94,39 @@ static int recv_fd(int passer_fd) {
     }
   }
 
+#else
+
+  msg.msg_accrights = (void*) &recv_fd;
+  msg.msg_accrightslen = sizeof(recv_fd);
+
+  rv = recvmsg(passer_fd, &msg, 0);
+
+  if (rv > 0) {
+    rv = recv_fd;
+  }
+
+#endif
+
   return rv;
 }
 
 
-int _fdpasser_server(char *path) {
+static int fdpasser_mode() {
+  return 1;
+}
+
+
+static int _fdpasser_server(char *path) {
   // Only used in SysV
   assert(0);
 }
 
-int _fdpasser_accept(char fd) {
+static int _fdpasser_accept(char fd) {
   // Only used in SysV
   assert(0);
 }
 
-int _fdpasser_connect(char *path) {
+static int _fdpasser_connect(char *path) {
   // Only used in SysV
   assert(0);
 }
@@ -143,9 +180,14 @@ static int recv_fd(int passer_fd) {
 }
 
 
+static int fdpasser_mode() {
+  return 2;
+}
+
+
 /* FIXME: double-check these functions for descriptor leaks */
 
-int _fdpasser_server(char *path) {
+static int _fdpasser_server(char *path) {
   int fds[2];
   int filefd;
   int rv;
@@ -182,7 +224,7 @@ int _fdpasser_server(char *path) {
   return fds[0];
 }
 
-int _fdpasser_accept(char fd) {
+static int _fdpasser_accept(char fd) {
   struct strrecvfd recvfd;
   int rv;
 
@@ -194,7 +236,7 @@ int _fdpasser_accept(char fd) {
   return recvfd.fd;
 }
 
-int _fdpasser_connect(char *path) {
+static int _fdpasser_connect(char *path) {
   int fd;
   int rv;
 
@@ -226,6 +268,8 @@ send_fd(passer_fd, fd_to_send)
 
 int recv_fd(passer_fd)
     int passer_fd
+
+int fdpasser_mode()
 
 int _fdpasser_server(path)
     char *path

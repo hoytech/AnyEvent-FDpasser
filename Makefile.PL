@@ -1,12 +1,14 @@
 use ExtUtils::MakeMaker;
 
+use strict;
+
 my $preop =
     'perldoc -uT $(VERSION_FROM) | tee $(DISTVNAME)/README.pod > README.pod;' .
     'pod2text README.pod | tee $(DISTVNAME)/README > README';
 
 my $define;
 
-if ($^O eq 'solaris') {
+if (exists $ENV{FDPASSER_SYSV}) {
   $define = '-DFDPASSER_SYSV';
 } else {
   $define = '-DFDPASSER_BSD';
