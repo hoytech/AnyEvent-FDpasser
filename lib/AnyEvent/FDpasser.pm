@@ -2,7 +2,7 @@ package AnyEvent::FDpasser;
 
 use common::sense;
 
-our $VERSION = '0.1';
+our $VERSION = '0.3.0';
 
 require XSLoader;
 XSLoader::load('AnyEvent::FDpasser', $VERSION);
