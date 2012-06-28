@@ -409,13 +409,13 @@ AnyEvent::FDpasser - pass file descriptors between processes using non-blocking 
 
 =head1 DESCRIPTION
 
-This module provides an object oriented interface for passing file descriptors between processes. Its primary goals are API simplicity, portability, and reliability. It is suitable for use in non-blocking programs where blocking in even exceptional circumstances is undesirable. Finally, this module should be efficient enough for nearly all use-cases.
+This module provides an object oriented interface for passing filehandles between processes. Its primary goals are API simplicity, portability, and reliability. It is suitable for use in non-blocking programs where blocking in even exceptional circumstances is undesirable. Finally, this module should be efficient enough for nearly all use-cases.
 
-This module currently works on BSD4.4-like systems (*BSD, Linux, OS X, &c) where it uses the SCM_RIGHTS ancillary data feature over AF_UNIX sockets, on BSD4.3-like systems (Solaris) where it uses msg_accrights field of msghdr over AF_UNIX sockets, and on SysV-like systems (Solaris, other obscure systems) where it uses the ioctl(I_SENDFD/I_RECVFD) feature of STREAMS pipes.
+This module currently works on BSD4.4-like systems (*BSD, Linux, Mac OS X) where it uses the C<SCM_RIGHTS> ancillary data feature over C<AF_UNIX> sockets, on BSD4.3-like systems (Solaris, IRIX?) where it uses C<msg_accrights> field of C<msghdr> over C<AF_UNIX> sockets, and on SysV-like systems (Solaris, HP-UX, AIX?) where it uses the C<ioctl(I_SENDFD/I_RECVFD)> feature of STREAMS pipes.
 
-Note that a passer object is "bidrectional" and you can use the same object to both send and receive file descriptors (each side has a separate input and output buffer).
+Note that a passer object is "bidrectional" and you can use the same object to both send and receive filehandles (each side has a separate input and output buffer).
 
-After sending an $fh, the sending process will automatically destroy the $fh for you and you shouldn't close it yourself. Forgetting all references to it is what you should do so that the underlying descriptor is actually closed after it is sent. The exception to this is when you also wish to keep the descriptor in the sender. Usually you will only do this for sockets that you accept() from.
+After sending a filehandle, the sending process will automatically destroy it and you shouldn't close it yourself. Forgetting all references to it is what you should do so that the underlying descriptor is actually closed after it is sent. The exception to this is when you also wish to keep the handle in the sender. Usually you will only do this for sockets that you C<accept()> from.
 
 
 
@@ -433,41 +433,41 @@ After sending an $fh, the sending process will automatically destroy the $fh for
     ## No i_am_parent or i_am_child required in this case:
     my $passer = AnyEvent::FDpasser->new( fh => $fh, );
 
-When creating a passer objects with two filehandles, it is assumed you want to fork. After you fork you are then supposed call C<< $passer->i_am_parent >> and C<< $passer->i_am_child >>. Creating a passer object with zero filehandles automatically creates a socketpair (or pipe on SysV-like systems) for you after which you should also fork and call C<< $passer->i_am_parent >> and C<< $passer->i_am_child >>.
+When creating a passer objects with two filehandles, it is assumed you want to fork. After you fork you are then supposed call C<< $passer->i_am_parent >> and C<< $passer->i_am_child >>. Creating a passer object with zero filehandles automatically creates a socketpair (or pipe on SysV systems) for you after which you should also fork and call C<< $passer->i_am_parent >> and C<< $passer->i_am_child >>.
 
-If you don't plan on forking and instead wish to establish the passing connection via the filesystem, you should only pass one filehandle in. If you only need to support the BSD interface, this filehandle can be created as a normal AF_UNIX socket. If you wish your code to also be portable to SysV systems, see the C<fdpasser_server>, C<fdpasser_accept>, and C<fdpasser_connect> functions described below.
+If you don't plan on forking and instead wish to establish the passing connection via the filesystem, you should only pass one filehandle in. If you only need to support the BSD interface, this filehandle can be created as a normal C<AF_UNIX> socket. If you wish your code to also be portable to SysV systems, see the C<fdpasser_server>, C<fdpasser_accept>, and C<fdpasser_connect> functions described below.
 
-The FDpasser constructor will set all filehandles to non-blocking mode. You can override this by passing C<dont_set_nonblocking =E<gt> 1,> in. Even though this module will only attempt to send or receive descriptors when the OS has indicated it is ready, some event loops deliver spurious readiness deliveries on sockets so this is not recommended. However, if you are creating passers often and your sockets are known to already be in non-blocking mode, C<dont_set_nonblocking> will provide a slight performance improvement in that it avoids a couple syscalls.
+The AnyEvent::FDpasser constructor will set all filehandles to non-blocking mode. You can override this by passing C<dont_set_nonblocking =E<gt> 1,> in. Even though this module will only attempt to send or receive descriptors when the OS has indicated it is ready, some event loops deliver spurious readiness deliveries on sockets so this parameter is not recommended. However, if you are creating passers often and your sockets are known to already be in non-blocking mode, C<dont_set_nonblocking> will provide a slight performance improvement in that it avoids a couple syscalls.
 
-An error callback can be passed in with the C<on_error> parameter. If an error happens, the $passer object will be shutdown and the callback invoked. C<$@> will be set to the error reason or will be undef in the event of an orderly shutdown.
+An error callback can be passed in with the C<on_error> parameter. If an error happens, the passer object will be shutdown and the callback invoked. C<$@> will be set to the error reason or will be undef in the event of an orderly shutdown.
 
 
 
 =item $passer->i_am_parent
 
-If forking the $passer object, this method must be called by the parent process after forking.
+If forking the passer object, this method must be called by the parent process after forking.
 
 
 =item $passer->i_am_child
 
-If forking the $passer object, this method must be called by the child process after forking.
+If forking the passer object, this method must be called by the child process after forking.
 
 
 
 =item $passer->push_send_fh($fh[, $cb->()])
 
-After calling C<push_send_fh>, the $fh passed in will be added to an order-preserving queue. Once the main event loop is entered, usually the $fh will be sent immediately since the peer is always a local process. However, if the receiving process's socket buffer is full it may not be sent until that buffer is drained.
+After calling C<push_send_fh>, the filehandle passed in will be added to an order-preserving queue. Once the main event loop is entered the filehandle will usually be sent immediately since the peer is a local process. However, if the receiving process's socket buffer is full it may not be sent until that buffer is drained.
 
-In any case, the push_send_fh method will not block. If you wish to perform some action once the socket actually has been sent, you can pass a callback as the second argument to C<push_send_fh>. It will be invoked after the descriptor has been sent to the OS and the descriptor has been closed in the sending process, but not necessarily before the receiving process has received the descriptor.
+In any case, the C<push_send_fh> method will not block. If you wish to perform some action once the socket actually has been sent, you can pass a callback as the second argument to C<push_send_fh>. It will be invoked after the descriptor has been sent to the OS and the descriptor has been closed in the sending process, but not necessarily before the receiving process has received the descriptor.
 
 This method is called C<push_send_fh> instead of, say, C<send_fh> to indicate that it is pushing the filehandle onto the end of a queue. Hopefully it should remind you of the similarly named C<push_write> method in L<AnyEvent::Handle>.
 
 
 =item $passer->push_recv_fh($cb->($fh))
 
-In order to receive the $fh, the receiving process calls C<push_recv_fh> and passes it a callback that will be called once an $fh is available. The $fh will be the first argument to this callback.
+In order to receive the filehandle, the receiving process calls C<push_recv_fh> and passes it a callback that will be called once one is available. The filehandle will be the first argument to this callback.
 
-Note that you can add multiple callbacks with C<push_recv_fh> to the input queue between returning to the main loop. The callbacks will be invoked in the same order that the $fhs are received (which is the same order that they were sent).
+Note that you can add multiple callbacks with C<push_recv_fh> to the input queue between returning to the main loop. The callbacks will be invoked in the same order that the filehandles are received (which is the same order that they were sent).
 
 This method is called C<push_recv_fh> instead of, say, C<recv_fh> to indicate that it is pushing a callback onto the end of a queue. Hopefully it should remind you of the similarly named C<push_read> method in L<AnyEvent::Handle>.
 
@@ -475,19 +475,19 @@ This method is called C<push_recv_fh> instead of, say, C<recv_fh> to indicate th
 
 =item AnyEvent::FDpasser::fdpasser_socketpair()
 
-This function returns two handles representing both ends of a connected socketpair. On BSD-like systems it uses C<socketpair(2)> and on SysV-like systems it uses C<pipe(2)>. Note that this function doesn't work on windows. See C<AnyEvent::Util::portable_socketpair> for a windows-portable socketpair (but these handles can't be used with AnyEvent::FDpasser).
+This function returns two handles representing both ends of a connected socketpair. On BSD systems it uses C<socketpair(2)> and on SysV systems it uses C<pipe(2)>. Note that this function doesn't work on windows so it's not really useful as a fully-generic socketpair. See C<AnyEvent::Util::portable_socketpair> for a windows-portable socketpair (but these handles can only be used with AnyEvent::FDpasser if using the BSD interface).
 
 =item $listener_fh = AnyEvent::FDpasser::fdpasser_server($path[, $backlog ])
 
-This function creates a listening node on the filesystem that other processes can connect to and establish FDpasser-capable connections. It is portable between BSD-like systems where it uses AF_UNIX sockets and SysV-like systems where it uses the C<connld> STREAMS module.
+This function creates a listening node on the filesystem that other processes can connect to and establish FDpasser-capable connections. It is portable between BSD systems where it uses C<AF_UNIX> sockets and SysV systems where it uses the C<connld> STREAMS module.
 
 =item $passer_fh = AnyEvent::FDpasser::fdpasser_accept($listener_fh)
 
-Given a listener filehandle created with L<AnyEvent::FDpasser::fdpasser_server>, this function accepts and creates a new filehandle suitable for creating an FDpasser object. It is portable between BSD-like systems where it uses the socket C<accept(2)> system call and SysV-like systems where it uses C<ioctl(I_RECVFD)>.
+Given a listener filehandle created with L<AnyEvent::FDpasser::fdpasser_server>, this function accepts and creates a new filehandle suitable for creating an FDpasser object. It is portable between BSD systems where it uses the socket C<accept(2)> system call and SysV systems where it uses C<ioctl(I_RECVFD)>.
 
 =item $passer_fh = AnyEvent::FDpasser::fdpasser_connect($path)
 
-This function connects to a listening node on the filesystem created with L<AnyEvent::FDpasser::fdpasser_server> and returns a new filehandle suitable for creating an FDpasser object. It is portable between BSD-like systems where it uses the socket C<connect(2)> system call and SysV-like systems where it C<open()>s a mounted stream.
+This function connects to a listening node on the filesystem created with L<AnyEvent::FDpasser::fdpasser_server> and returns a new filehandle suitable for creating an FDpasser object. It is portable between BSD systems where it uses the socket C<connect(2)> system call and SysV systems where it C<open()>s a mounted stream.
 
 =back
 
@@ -507,7 +507,7 @@ You should remove all IO watchers associated with the descriptor before initiati
 
 This module itself never calls C<fork()>, but many use-cases of this module involve the application program forking. All the usual things you must worry about when forking an AnyEvent application also apply to this module. In particular, you should ensure that you fork before sending or receiving any descriptors because these operations create AnyEvent watchers and doing so will start the event loop. Since both the parent and child require a running event loop to drive FDpasser, in this configuration the event loop must be reset in the child process (see the AnyEvent documentation).
 
-Note that creating a passer object before forking is fine since doing this doesn't install any AnyEvent watchers. Also, using the filesystem with AF_UNIX sockets (or more portably, C<fdpasser_server>, C<fdpasser_accept>, and C<fdpasser_connect>) obviates the need to worry about forking.
+Note that creating a passer object before forking is fine since doing this doesn't install any AnyEvent watchers. Also, using the filesystem with C<AF_UNIX> sockets (or more portably, C<fdpasser_server>, C<fdpasser_accept>, and C<fdpasser_connect>) obviates the need to worry about forking.
 
 
 =head2 Control channels
@@ -550,7 +550,7 @@ This trick is similar to a trick described in Marc Lehmann's libev POD document,
 
 =head1 TESTS AND SYSTEM ASSUMPTIONS
 
-All the following tests should work with BSD4.4, BSD4.3, and SysV interfaces.
+All the following tests should work with BSD4.4, BSD4.3, and SysV interfaces (where available).
 
 
 =head2 Bidirectional
@@ -617,9 +617,9 @@ A related module is L<Socket::MsgHdr> which provides complete control over ancil
 
 =head1 BUGS
 
-This module doesn't support windows. Theoretically windows support could be added with some annoying combination of C<DuplicateHandle> and C<WSADuplicateSocket> but I don't care enough to implement this.
+This module doesn't support windows. Theoretically windows support could be added with some annoying combination of C<DuplicateHandle> and C<WSADuplicateSocket> but I don't care enough to implement it at this time.
 
-If there are multiple outstanding file handles to be sent, for performance reasons this module could (on BSD4.4 systems) batch them together into one C<cmsg> and then execute one C<sendmsg()> system call. Unfortunately, that would make the close-dup trick less efficient. Maybe there is a sweet spot?
+If there are multiple outstanding filehandles to be sent, for performance reasons this module could (on BSD4.4 systems) batch them together into one C<cmsg> and then execute one C<sendmsg()> system call. Unfortunately, that would make the close-dup trick less efficient. Maybe there is a sweet spot?
 
 It would be nice to auto-detect the best interface (BSD4.4/BSD4.3/SysV) to use for a given system.
 
