@@ -507,7 +507,7 @@ You should remove all IO watchers associated with the descriptor before initiati
 
 This module itself never calls C<fork()>, but many use-cases of this module involve the application program forking. All the usual things you must worry about when forking an AnyEvent application also apply to this module. In particular, you should ensure that you fork before sending or receiving any descriptors because these operations create AnyEvent watchers and doing so will start the event loop. Since both the parent and child require a running event loop to drive FDpasser, in this configuration the event loop must be reset in the child process (see the AnyEvent documentation).
 
-Note that creating a passer object before forking is fine since doing this doesn't install any AnyEvent watchers. Also, using the filesystem with C<AF_UNIX> sockets (or more portably, C<fdpasser_server>, C<fdpasser_accept>, and C<fdpasser_connect>) obviates the need to worry about forking.
+Creating a passer object before forking is fine since doing this doesn't install any AnyEvent watchers. Also, using the filesystem with C<AF_UNIX> sockets (or more portably, C<fdpasser_server>, C<fdpasser_accept>, and C<fdpasser_connect>) obviates the need to worry about forking.
 
 
 =head2 Control channels
@@ -535,13 +535,13 @@ In order to pass a file descriptor between processes, a new descriptor needs to 
 
 So what should we do? We could silently ignore it when a descriptor fails to transfer, but then we run the risk of desynchronising the descriptor stream. Another possibility is indicating to the application that this descriptor has failed to transfer and is now lost forever. Unfortunately this complicates the error handling an application must do, especially if the descriptor is linked to other descriptors which must then be received and (if they make it) closed. Finally, we could just give up, call the on_error callback, destory the passer object and punt the problem back to the application.
 
-None of the above "solutions" are very appealing so this module uses a trick known as the "close-dup slot reservation" trick. Actually I just made that name up now but it sounds pretty cool don't you think? The idea is that when the passer object is created, we C<dup> a file descriptor and store it in the object. This module creates a pipe when the passer object is made, closes one side of the pipe and keeps the other around indefinitely. This "sentinel" descriptor exists solely to take up an entry in our descriptor table: we will never write to it, read from it, or poll it.
+None of the above "solutions" are very appealing so this module uses a trick known as the "close-dup slot reservation" trick. Actually I just made that name up now but it sounds pretty cool don't you think? The idea is that when the passer object is created, we C<dup> a file descriptor and store it in the object. This module creates a pipe when the passer object is made, closes one side of the pipe and keeps the other around. This "sentinel" descriptor exists solely to take up an entry in our descriptor table: we will never write to it, read from it, or poll it.
 
-When it comes time to receive a descriptor, we close the sentinel descriptor, receive the descriptor, and then attempt to dup another descriptor. Because we just cleared a descriptor entry, there should always be a free descriptor to create.
+When it comes time to receive a descriptor, we close the sentinel descriptor, receive the descriptor from the sending process, and then attempt to dup another descriptor. Because we just cleared a descriptor table entry, there should always be a free descriptor to create.
 
-After we have received the descriptor, we attempt to C<dup> another descriptor. If that fails, we stop trying to receive any further descriptors and instead try again at regular intervals to C<dup>. Hopefully eventually the full descriptor table issue will clear up and we will be able to resume receiving descriptors.
+If duping fails, we stop trying to receive any further descriptors and instead retry at regular intervals (while not interrupting the event loop). Hopefully eventually the full descriptor table issue will clear up and we will be able to resume receiving descriptors.
 
-Note that a descriptor could be created between closing and receiving if your program uses asynchronous signal handlers or threads that create descriptors, so don't do that. Signal handlers that run synchronously (like normal AnyEvent signal watchers) are fine though.
+Note that a descriptor could be created between closing and receiving if your program uses asynchronous signal handlers or threads that create descriptors, so don't do that. Signals that are handled synchronously (like normal AnyEvent signal watchers) are fine.
 
 This trick is similar to a trick described in Marc Lehmann's libev POD document, section "special problem of accept()ing when you can't," although the purpose of employing the trick in this module is somewhat different.
 
