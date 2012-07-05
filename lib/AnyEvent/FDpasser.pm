@@ -403,7 +403,7 @@ AnyEvent::FDpasser - pass file descriptors between processes using non-blocking 
       });
     }
 
-    AE->cv->recv; # AnyEvent main loop
+    AE::cv->recv; # AnyEvent "main loop"
 
 
 
