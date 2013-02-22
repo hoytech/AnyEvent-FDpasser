@@ -1,12 +1,11 @@
-README
+Changes
 COPYING
+FDpasser.xs
+lib/AnyEvent/FDpasser.pm
+Makefile.PL
 MANIFEST
 MANIFEST.SKIP
-Makefile.PL
-
-lib/AnyEvent/FDpasser.pm
-FDpasser.xs
-
+README
 t/basic_filesystem.t
 t/basic_socketpair.t
 t/buffer_exercise.t

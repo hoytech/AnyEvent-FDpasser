@@ -8,3 +8,4 @@ FDpasser.c
 FDpasser.o
 blib/
 pm_to_blib
+MANIFEST.bak
