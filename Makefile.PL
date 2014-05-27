@@ -23,7 +23,7 @@ my %args = (
     'AnyEvent' => 0,
   },
   dist => {
-    PREOP => 'perldoc -uT lib/AnyEvent/FDpasser.pm > README.pod; pod2text README.pod > $(DISTVNAME)/README',,
+    PREOP => 'pod2text $(VERSION_FROM) > $(DISTVNAME)/README',
   },
 );
 
